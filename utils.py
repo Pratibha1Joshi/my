@@ -10,7 +10,7 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 import sklearn.preprocessing as preprocess
 
 def sample_mask(idx, l):
-    """Create mask."""
+    
     mask = np.zeros(l)
     mask[idx] = 1
     return np.array(mask, dtype=bool)
@@ -25,25 +25,17 @@ def load_data(dataset):
         return adj, features, label, 0, 0, 0
 
     for i in range(len(names)):
-        '''
-        fix Pickle incompatibility of numpy arrays between Python 2 and 3
-        https://stackoverflow.com/questions/11305790/pickle-incompatibility-of-numpy-arrays-between-python-2-and-3
-        '''
         with open("data/ind.{}.{}".format(dataset, names[i]), 'rb') as rf:
             u = pkl._Unpickler(rf)
             u.encoding = 'latin1'
             cur_data = u.load()
             objects.append(cur_data)
-        # objects.append(
-        #     pkl.load(open("data/ind.{}.{}".format(dataset, names[i]), 'rb')))
     x, y, tx, ty, allx, ally, graph = tuple(objects)
     test_idx_reorder = parse_index_file(
         "data/ind.{}.test.index".format(dataset))
     test_idx_range = np.sort(test_idx_reorder)
 
     if dataset == 'citeseer':
-        # Fix citeseer dataset (there are some isolated nodes in the graph)
-        # Find isolated nodes, add them as zero-vecs into the right position
         test_idx_range_full = range(
             min(test_idx_reorder), max(test_idx_reorder) + 1)
         tx_extended = sp.lil_matrix((len(test_idx_range_full), x.shape[1]))
@@ -142,11 +134,7 @@ def sparse_to_tuple(sparse_mx):
 
 
 def mask_test_edges(adj):
-    # Function to build test set with 10% positive links
-    # NOTE: Splits are randomized and results might slightly deviate from reported numbers in the paper.
-    # TODO: Clean up.
 
-    # Remove diagonal elements
     adj = adj - sp.dia_matrix((adj.diagonal()[np.newaxis, :], [0]), shape=adj.shape)
     adj.eliminate_zeros()
     # Check that diag is zero:
@@ -207,19 +195,9 @@ def mask_test_edges(adj):
                 continue
         val_edges_false.append([idx_i, idx_j])
 
-    #assert ~ismember(test_edges_false, edges_all)
-    #assert ~ismember(val_edges_false, edges_all)
-    #assert ~ismember(val_edges, train_edges)
-    #assert ~ismember(test_edges, train_edges)
-    #assert ~ismember(val_edges, test_edges)
-
     data = np.ones(train_edges.shape[0])
-
-    # Re-build adj matrix
     adj_train = sp.csr_matrix((data, (train_edges[:, 0], train_edges[:, 1])), shape=adj.shape)
     adj_train = adj_train + adj_train.T
-
-    # NOTE: these edge lists only contain single direction of edge!
     return adj_train, train_edges, val_edges, val_edges_false, test_edges, test_edges_false
 
 def decompose(adj, dataset, norm='sym', renorm=True):
@@ -283,13 +261,11 @@ def preprocess_graph(adj, layer, norm='sym', renorm=True, subtract_laplacian=Tru
     return adjs
 
 def calculate_laplacian(adjacency_matrix):
-    # Calculate the graph Laplacian matrix (assuming normalized Laplacian)
     degree_matrix = sp.diags(np.array(adjacency_matrix.sum(axis=1)).flatten())
     laplacian = degree_matrix - adjacency_matrix
     return laplacian
 
 def sparse_mx_to_torch_sparse_tensor(sparse_mx):
-    """Convert a scipy sparse matrix to a torch sparse tensor."""
     sparse_mx = sparse_mx.tocoo().astype(np.float32)
     indices = torch.from_numpy(
         np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int32))
